@@ -1,0 +1,12 @@
+classifier:
+  type: 'svm'        # changed from 'logreg' to 'svm'
+  logreg:
+    C: 2.0
+    class_weight: 'balanced'
+  svm:
+    C: 1.0           # tweak this if you want
+  nb:
+    alpha: 1.0
+  rf:
+    n_estimators: 200
+    max_depth: 50

@@ -1,0 +1,94 @@
+project:
+  name: 'news_improvement'
+  random_seed: 42
+
+data:
+  raw_dir: 'data/raw'
+  processed_dir: 'data/processed'
+  interim_dir: 'data/interim'
+
+  # Per-source info (filenames taken from what you shared)
+  sources:
+    pakistan_today:
+      filename: 'pakistan_today(full-data).csv'
+      encoding: 'utf-8'
+    tribune:
+      filename: 'tribune(full-data).csv'
+      encoding: 'latin1'
+    dawn:
+      filename: 'dawn (full-data).csv'
+      encoding: 'latin1'
+    daily_times:
+      filename: 'daily_times(full-data).csv'
+      encoding: 'utf-8'
+    business_reorder:
+      filename: 'business_recorder(2020-2023).csv'
+      encoding: 'latin1'
+
+  use_sample: true
+  sample:
+    per_source: 10000   # max rows per source when building modeling dataset
+
+  large_file:
+    business_reorder_chunksize: 20000
+
+categories:
+  mapping_file: 'configs/category_mapping_v1.yaml'
+  unknown_to: 'Other'
+  min_samples_per_class: 1000
+
+preprocessing:
+  text_cleaning:
+    lower: true
+    remove_punctuation: true
+    remove_numbers: true
+    remove_stopwords: true
+    lemmatize: false
+  text_columns:
+    - 'headline'
+    - 'description'
+  join_with: ' '
+
+vectorizer:
+  type: 'tfidf'         # 'tfidf' or 'bow'
+  ngram_range: [ 1, 2 ]
+  max_features: 50000
+
+classifier:
+  type: 'logreg'        # 'logreg', 'svm', 'nb', 'rf'
+  logreg:
+    C: 2.0
+    class_weight: 'balanced'
+  svm:
+    C: 1.0
+  nb:
+    alpha: 1.0
+  rf:
+    n_estimators: 200
+    max_depth: 50
+
+summarizer:
+  type: 'bart'          # 'none', 'extractive', 't5', 'bart'
+  extractive:
+    max_sentences: 3
+  t5:
+    model_name: 't5-small'
+    max_length: 120
+    min_length: 40
+  bart:
+    model_name: 'facebook/bart-large-cnn'
+    max_length: 120
+    min_length: 40
+
+evaluation:
+  test_size: 0.2
+  metrics:
+    - 'accuracy'
+    - 'macro_f1'
+  summarization:
+    use_rouge: false
+    compute_readability: true
+
+artifacts:
+  model_dir: 'models'
+  classifier_filename: 'news_classifier.joblib'

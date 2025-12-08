@@ -1,3 +1,5 @@
+extends: base.yaml
+
 classifier:
   type: 'svm'        # changed from 'logreg' to 'svm'
   logreg:

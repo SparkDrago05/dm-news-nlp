@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from copy import deepcopy
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -20,11 +20,28 @@ def _resolve_path(p: str | Path, root: Path) -> Path:
     return p if p.is_absolute() else (root / p)
 
 
+def _deep_update(base: dict, overrides: dict) -> dict:
+    """Recursively merge overrides into base."""
+    for k, v in overrides.items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            base[k] = _deep_update(base[k], v)
+        else:
+            base[k] = v
+    return base
+
+
 def load_yaml(path: str | Path) -> Dict[str, Any]:
-    """Load a YAML configuration file."""
-    path = Path(path)
+    """Load a YAML config with optional 'extends' inheritance."""
     with path.open('r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
+
+    extends = cfg.pop('extends', None)
+    if extends:
+        base_path = path.parent / extends
+        base_cfg = load_yaml(base_path)   # recursion if base also extends something
+        cfg = _deep_update(base_cfg, cfg)
+
+    return cfg
 
 
 def _drop_unnamed_columns(df: pd.DataFrame) -> pd.DataFrame:

@@ -54,6 +54,11 @@ def _load_single_source(
     )
     df = _drop_unnamed_columns(df)
 
+    # Basic normalization of string columns
+    for col in ['source', 'categories', 'headline', 'description']:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()  # Removes whitespaces
+
     # Ensure expected columns exist
     expected = ['headline', 'date', 'link', 'source', 'categories', 'description']
     missing = [c for c in expected if c not in df.columns]
@@ -116,7 +121,7 @@ def load_all_sources(config: Dict[str, Any], root: str | Path | None = None) -> 
 
     # Filter to valid sources only
     before_shape = combined.shape
-    combined = combined[combined['source'].isin(valid_sources)].copy() # Take a copy of the filtered DataFrame and include only valid sources
+    combined = combined[combined['source'].isin(valid_sources)].copy()  # Take a copy of the filtered DataFrame and include only valid sources
     logger.info('Filtered invalid sources: %s -> %s', before_shape, combined.shape)
 
     logger.info('Combined dataset shape: %s', combined.shape)
@@ -171,15 +176,27 @@ def add_broad_category(
         if not isinstance(raw, str) or not raw.strip():
             return unknown_to
         key = raw.strip().lower()
+
         if key in raw_to_broad:
             return raw_to_broad[key]
         # Fuzzy / contains-style matching
         for stored, broad in raw_to_broad.items():
             if stored in key:
                 return broad
+
         return unknown_to
 
     df = df.copy()
+
+    # Convert characters like & etc which appear &amp; in the data
+    df['categories'] = df['categories'].str.replace('&amp;', '&', regex=False)
+
+    # Convert to replace and with &
+    df['categories'] = df['categories'].str.replace(' and ', ' & ', regex=False)
+
+    # Convert to title case for better matching
+    df['categories'] = df['categories'].str.title()
+
     df['broad_category'] = df['categories'].apply(map_category)
 
     if category_inference:

@@ -1,0 +1,16 @@
+# configs/bow_logreg.yaml
+extends: base.yaml
+
+vectorizer:
+  type: bow
+  max_features: 30000
+  ngram_range: [ 1, 2 ]
+  min_df: 3
+
+model:
+  type: logreg
+  C: 1.0
+  max_iter: 1000
+
+artifacts:
+  classifier_filename: 'bow_logreg_clean.joblib'

@@ -1,0 +1,21 @@
+extends: base.yaml
+
+preprocessing:
+  text_cleaning:
+    lower: true
+    remove_punctuation: true
+    remove_numbers: false
+    remove_stopwords: false  # KEEP stopwords to see baseline
+    lemmatize: false
+
+vectorizer:
+  type: tfidf
+  ngram_range: [ 1, 1 ]
+
+classifier:
+  type: logreg
+  logreg:
+    C: 1.0
+
+artifacts:
+  classifier_filename: 'tfidf_logreg_basic.joblib'

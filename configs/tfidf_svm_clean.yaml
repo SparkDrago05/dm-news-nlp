@@ -1,0 +1,16 @@
+# configs/tfidf_svm.yaml
+extends: base.yaml
+
+vectorizer:
+  type: tfidf
+  max_features: 30000
+  ngram_range: [ 1, 2 ]
+
+model:
+  type: svm
+  C: 1.0
+  kernel: linear
+  class_weight: balanced
+
+artifacts:
+  classifier_filename: 'tfidf_svm_clean.joblib'

@@ -1,0 +1,11 @@
+extends: base.yaml
+
+vectorizer:
+  type: tfidf
+  ngram_range: [1, 2] # Test pairs of words
+
+classifier:
+  type: svm
+
+artifacts:
+  classifier_filename: 'tfidf_svm_bigrams.joblib'

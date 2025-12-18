@@ -1,0 +1,15 @@
+# configs/bow_svm.yaml
+extends: base.yaml
+
+vectorizer:
+  type: bow
+  max_features: 40000
+  ngram_range: [ 1, 2 ]
+
+model:
+  type: svm
+  kernel: linear
+  C: 1.0
+
+artifacts:
+  classifier_filename: 'bow_svm_clean.joblib'

@@ -1,0 +1,14 @@
+# configs/tfidf_nb.yaml
+extends: base.yaml
+
+vectorizer:
+  type: tfidf
+  max_features: 20000
+  ngram_range: [ 1, 1 ]
+
+model:
+  type: nb
+  alpha: 1.0
+
+artifacts:
+  classifier_filename: 'tfidf_nb_clean.joblib'

@@ -1,0 +1,13 @@
+extends: base.yaml
+
+vectorizer:
+  type: tfidf
+  ngram_range: [1, 1]
+
+classifier:
+  type: svm
+  svm:
+    C: 1.0
+
+artifacts:
+  classifier_filename: 'tfidf_logreg_clean.joblib'

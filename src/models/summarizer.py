@@ -118,29 +118,48 @@ class TransformersSummarizer(BaseSummarizer):
         )
 
     def summarize(self, text: str, category: Optional[str] = None) -> str:
-        if not text or not text.strip():
-            return text
+        """Summarize text safely. Truncates input by tokenizer limit and falls back on errors."""
+        if not text or not str(text).strip():
+            return str(text or '').strip()
 
         prefix = ''
         if category:
             prefix = f'[Category: {category}] '
 
-        input_text = prefix + text
-        # Some models have max input length; we can truncate
-        max_input_len = 1024
-        if len(input_text.split()) > max_input_len:
-            tokens = input_text.split()
-            input_text = ' '.join(tokens[:max_input_len])
+        input_text = (prefix + str(text)).strip()
 
-        out = self.pipe(
-            input_text,
-            max_length=self.max_length,
-            min_length=self.min_length,
-            truncation=True,
-        )
-        if isinstance(out, list) and out:
-            return out[0].get('summary_text', text)
-        return text
+        # Tokenizer-based truncation (BART max input is typically 1024 tokens)
+        tok = self.pipe.tokenizer
+        max_tok = getattr(tok, 'model_max_length', 1024)
+
+        # Some tokenizers use a huge sentinel value; clamp to something safe for BART
+        if max_tok is None or max_tok > 4096:
+            max_tok = 1024
+
+        try:
+            encoded = tok(
+                input_text,
+                truncation=True,
+                max_length=int(max_tok),
+                return_tensors='pt',
+            )
+            input_text = tok.decode(encoded['input_ids'][0], skip_special_tokens=True)
+
+            out = self.pipe(
+                input_text,
+                max_length=self.max_length,
+                min_length=min(self.min_length, self.max_length - 1),
+                truncation=True,
+            )
+            if isinstance(out, list) and out:
+                return out[0].get('summary_text', str(text))
+            return str(text)
+
+        except Exception:
+            # Fallback: if transformer crashes on a specific sample, do a simple safe extract
+            sentences = str(text).replace('\n', ' ').split('.')
+            sentences = [s.strip() for s in sentences if s.strip()]
+            return '. '.join(sentences[:3]) + ('.' if sentences else '')
 
 
 def build_summarizer(cfg: Dict) -> BaseSummarizer:

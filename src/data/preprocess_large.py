@@ -6,17 +6,10 @@ from pathlib import Path
 from typing import Dict, Any
 
 import pandas as pd
-import yaml
+from .load import load_yaml
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def load_yaml(path: str | Path) -> Dict[str, Any]:
-    """Load YAML config."""
-    path = Path(path)
-    with path.open('r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
 
 
 def preprocess_business_reorder(config: Dict[str, Any]) -> None:

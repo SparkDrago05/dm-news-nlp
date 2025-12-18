@@ -1,7 +1,7 @@
 extends: base.yaml
 
 classifier:
-  type: 'svm'        # changed from 'logreg' to 'svm'
+  type: 'nb'
   logreg:
     C: 2.0
     class_weight: 'balanced'
@@ -14,4 +14,4 @@ classifier:
     max_depth: 50
 
 artifacts:
-  classifier_filename: 'news_classifier_svm.joblib'
+  classifier_filename: 'news_classifier_nb.joblib'

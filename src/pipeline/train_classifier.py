@@ -7,20 +7,13 @@ from typing import Dict, Any
 
 import yaml
 
-from ..data.load import load_all_sources, add_broad_category
+from ..data.load import load_yaml, load_all_sources, add_broad_category
 from ..models.classifier import train_text_classifier
 from ..models.evaluation import evaluate_classifier
 from ..models.classifier import save_classifier
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def load_yaml(path: str | Path) -> Dict[str, Any]:
-    """Load YAML config file."""
-    path = Path(path)
-    with path.open('r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
 
 
 def main() -> None:

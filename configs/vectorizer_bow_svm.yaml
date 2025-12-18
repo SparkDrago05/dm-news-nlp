@@ -1,5 +1,10 @@
 extends: base.yaml
 
+vectorizer:
+  type: 'bow'
+  ngram_range: [ 1, 2 ]
+  max_features: 50000
+
 classifier:
   type: 'svm'        # changed from 'logreg' to 'svm'
   logreg:
@@ -14,4 +19,4 @@ classifier:
     max_depth: 50
 
 artifacts:
-  classifier_filename: 'news_classifier_svm.joblib'
+  classifier_filename: 'news_classifier_bow_svm.joblib'

@@ -33,7 +33,7 @@ data:
     business_reorder_chunksize: 20000
 
 categories:
-  mapping_file: 'configs/category_mapping_v1.yaml'
+  mapping_file: 'configs/category_mapping_v2.yaml'
   unknown_to: 'Other'
   min_samples_per_class: 1000
 
@@ -67,8 +67,25 @@ classifier:
     n_estimators: 200
     max_depth: 50
 
+retrieval:
+  enabled: true
+  top_k: 3
+  min_similarity: 0.08
+  text_columns:
+    - 'headline'
+    - 'description'
+  join_with: ' '
+  vectorizer:
+    ngram_range: [ 1, 2 ]
+    max_features: 60000
+    remove_stopwords: true
+  artifacts:
+    index_dir: 'data/processed/retrieval_index'
+    filename: 'tfidf_retrieval.joblib'
+
 summarizer:
   type: 'bart'          # 'none', 'extractive', 't5', 'bart'
+  mode: 'rewrite'
   extractive:
     max_sentences: 3
   t5:
@@ -77,8 +94,41 @@ summarizer:
     min_length: 40
   bart:
     model_name: 'facebook/bart-large-cnn'
-    max_length: 120
-    min_length: 40
+    max_length: 160
+    min_length: 60
+
+rewrite:
+  type: 'article_expander'
+  include_headline: true
+  include_context: true
+  include_next_steps: true
+  include_evidence: true
+
+  lede_sentences: 3
+  user_detail_sentences: 6
+
+  # Context extraction from retrieved articles (dataset RAG)
+  context_max_sources: 3
+  context_sentences_per_source: 2
+  context_max_total_sentences: 6
+  context_min_sentence_chars: 45
+
+  # Target length of final expanded article
+  target_min_words: 220
+  target_max_words: 420
+
+  background_prefix: 'Related coverage in our corpus indicates:'
+
+  next_steps_templates:
+    Business: 'What to watch: Analysts say next moves may depend on inflation, currency trends, and policy clarity.'
+    Pakistan: 'What to watch: Officials are expected to respond as institutions weigh legal, administrative, and governance steps.'
+    World: 'What to watch: Diplomatic signals and regional coordination will be key milestones in the coming days.'
+    Sports: 'What to watch: Team selection, injury updates, and tactical adjustments ahead of upcoming fixtures.'
+    Technology: 'What to watch: Product roadmaps, regulatory signals, and investor sentiment across the sector.'
+    Opinion: 'What to watch: Public debate may shift as evidence, expert commentary, and institutional responses emerge.'
+    Lifestyle: 'What to watch: Community response, practical adoption, and follow-up initiatives by organisers.'
+    Other: 'What to watch: More updates are likely as verified details and official statements become available.'
+
 
 evaluation:
   test_size: 0.2

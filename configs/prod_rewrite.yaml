@@ -1,0 +1,8 @@
+extends: model_svm.yaml
+
+summarizer:
+  mode: 'rewrite'
+
+artifacts:
+  model_dir: 'models'
+  classifier_filename: 'news_classifier_svm.joblib'

@@ -3,28 +3,19 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
-import yaml
-import pandas as pd
-
-from ..data.load import load_all_sources, add_broad_category
-from ..models.classifier import load_classifier, prepare_text_and_labels
+from ..data.load import load_yaml, load_all_sources, add_broad_category
+from ..models.classifier import load_classifier
+from ..models.rewriter import build_rewriter
 from ..models.summarizer import build_summarizer
+from ..retrieval.indexer import load_retrieval_index, retrieve_similar_articles, retrieval_enabled
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def load_yaml(path: str | Path) -> Dict[str, Any]:
-    """Load YAML config file."""
-    path = Path(path)
-    with path.open('r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
-
-
-def main() -> None:
-    """Run end-to-end pipeline: classify and summarize some sample articles."""
+def parse_args():
     parser = argparse.ArgumentParser(description='Run full pipeline on sample articles.')
     parser.add_argument(
         '--config',
@@ -38,15 +29,41 @@ def main() -> None:
         default=5,
         help='Number of random samples to run.',
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        '--root',
+        type=str,
+        default=None,
+        help='Override project root used to resolve relative data paths (e.g., data/raw).',
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    """Run end-to-end pipeline: classify and summarize some sample articles."""
+    args = parse_args()
 
     cfg = load_yaml(args.config)
 
-    df = load_all_sources(cfg)
-    df = add_broad_category(df, cfg)
+    root_path = Path(args.root).expanduser().resolve() if args.root else None
 
-    model = load_classifier(cfg)
+    df = load_all_sources(cfg, root=root_path)
+    df = add_broad_category(df, cfg, root=root_path)
+
+    model = load_classifier(cfg, root=root_path)
     summarizer = build_summarizer(cfg)
+    rewriter = build_rewriter(cfg)
+
+    retrieval_index: Optional[Any] = None
+    retrieval_cfg = cfg.get('retrieval', {})
+    if retrieval_enabled(cfg):
+        try:
+            retrieval_index = load_retrieval_index(cfg, root=root_path)
+            logger.info('Loaded retrieval index for contextual expansion.')
+        except FileNotFoundError:
+            logger.warning(
+                'Retrieval index not found. Run build_retrieval_index.py --config %s to enable context-aware rewrites.',
+                args.config,
+            )
 
     # Sample rows
     sample = df.sample(n=args.num_samples, random_state=cfg['project']['random_seed']).reset_index(drop=True)
@@ -67,6 +84,33 @@ def main() -> None:
         summary = summarizer.summarize(orig_row.get('description', ''), category=pred_cat)
         logger.info('Original description (first 400 chars): %s', orig_row.get('description', '')[:400])
         logger.info('Summary (first 400 chars): %s', summary[:400])
+
+        retrieved = []
+        if retrieval_index is not None:
+            retrieved = retrieve_similar_articles(
+                text,
+                retrieval_index,
+                top_k=retrieval_cfg.get('top_k', 3),
+                min_similarity=retrieval_cfg.get('min_similarity', 0.0),
+            )
+
+        rewrite_result = rewriter.rewrite(
+            headline=orig_row.get('headline', ''),
+            description=orig_row.get('description', ''),
+            category=pred_cat,
+            retrieved=retrieved,
+        )
+
+        logger.info('Improved article:\n%s', rewrite_result.compose_text())
+        if retrieved:
+            logger.info('Context articles used:')
+            for ctx in retrieved:
+                logger.info(
+                    ' - [%s | score=%.3f] %s',
+                    ctx.get('source', 'source'),
+                    ctx.get('score', 0.0),
+                    ctx.get('headline', '')[:160],
+                )
 
 
 if __name__ == '__main__':

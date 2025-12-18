@@ -1,0 +1,10 @@
+extends: base.yaml
+
+classifier:
+  type: 'logreg'
+  logreg:
+    C: 2.0
+    class_weight: 'balanced'
+
+artifacts:
+  classifier_filename: 'news_classifier_logreg.joblib'

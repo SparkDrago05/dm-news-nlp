@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from functools import partial
 from typing import Dict
 
 try:
@@ -72,10 +73,11 @@ def clean_text(text: str, cfg: Dict) -> str:
     return ' '.join(tokens)
 
 
-def build_preprocessor(cfg: Dict) -> callable:
-    """Return a function suitable for sklearn Vectorizer.preprocessor."""
+def _preprocessor(text: str, *, cfg: Dict) -> str:
+    """Pickle-safe preprocessor wrapper for sklearn vectorizers."""
+    return clean_text(text, cfg)
 
-    def preprocessor(text: str) -> str:
-        return clean_text(text, cfg)
 
-    return preprocessor
+def build_preprocessor(cfg: Dict):
+    """Return a pickle-safe callable suitable for sklearn Vectorizer.preprocessor."""
+    return partial(_preprocessor, cfg=cfg)

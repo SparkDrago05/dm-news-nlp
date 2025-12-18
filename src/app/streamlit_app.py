@@ -1,20 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Dict, Any
-
 import streamlit as st
-import yaml
 
+from ..data.load import load_yaml
 from ..models.classifier import load_classifier
+from ..models.rewriter import build_rewriter
 from ..models.summarizer import build_summarizer
-
-
-def load_yaml(path: str | Path) -> Dict[str, Any]:
-    """Load YAML config file."""
-    path = Path(path)
-    with path.open('r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+from ..retrieval.indexer import load_retrieval_index, retrieve_similar_articles, retrieval_enabled
 
 
 def main() -> None:
@@ -23,9 +15,27 @@ def main() -> None:
 
     st.title('📰 News Classification & Professional Rewrite')
 
-    cfg = load_yaml('configs/base.yaml')
+    config_path = 'configs/prod_rewrite.yaml'
+    try:
+        cfg = load_yaml(config_path)
+    except FileNotFoundError:
+        cfg = load_yaml('configs/base.yaml')
+        st.warning('prod_rewrite.yaml not found, falling back to base config.')
+
     classifier = load_classifier(cfg)
     summarizer = build_summarizer(cfg)
+    rewriter = build_rewriter(cfg)
+
+    retrieval_index = None
+    retrieval_cfg = cfg.get('retrieval', {})
+    if retrieval_enabled(cfg):
+        try:
+            retrieval_index = load_retrieval_index(cfg)
+        except FileNotFoundError:
+            st.info(
+                'Retrieval index not found. Run `python -m src.pipeline.build_retrieval_index --config '
+                f'{config_path}` to enable corpus context.',
+            )
 
     col1, col2 = st.columns(2)
 
@@ -57,15 +67,54 @@ def main() -> None:
                 st.subheader('Results')
                 st.write(f'**Predicted Category:** {pred_cat}')
 
-                summary = summarizer.summarize(description or headline, category=pred_cat)
-                st.markdown('**Improved / Summarized Version:**')
-                st.write(summary)
+                retrieved = []
+                if retrieval_index is not None:
+                    retrieved = retrieve_similar_articles(
+                        combined_text,
+                        retrieval_index,
+                        top_k=retrieval_cfg.get('top_k', 3),
+                        min_similarity=retrieval_cfg.get('min_similarity', 0.0),
+                    )
+
+                rewrite_output = rewriter.rewrite(
+                    headline=headline,
+                    description=description,
+                    category=pred_cat,
+                    retrieved=retrieved,
+                )
+
+                st.markdown('**Professional Article Output**')
+                if rewrite_output.headline:
+                    st.markdown(f'### {rewrite_output.headline}')
+                if rewrite_output.lead:
+                    st.write(rewrite_output.lead)
+                if rewrite_output.details:
+                    st.write(rewrite_output.details)
+                if rewrite_output.context:
+                    st.info(rewrite_output.context)
+                if rewrite_output.next_steps:
+                    st.write(f'*What to watch next:* {rewrite_output.next_steps}')
+
+                if retrieved:
+                    st.markdown('**Retrieved sources used for context**')
+                    for item in retrieved:
+                        meta = [
+                            f"{item.get('source', 'Source')}",
+                            item.get('date', ''),
+                            f"score={item.get('score', 0.0):.3f}",
+                        ]
+                        st.write(' - '.join(filter(None, meta)))
+                        st.caption(item.get('headline', '') or item.get('description', '')[:200])
+
+                with st.expander('Concise summary (BART)'):
+                    summary = summarizer.summarize(description or headline, category=pred_cat)
+                    st.write(summary)
 
                 # Small stats
                 orig_len = len((description or headline).split())
-                summ_len = len(summary.split())
+                improved_len = len(rewrite_output.compose_text().split())
                 st.write(f'Original length: {orig_len} words')
-                st.write(f'Summary length: {summ_len} words')
+                st.write(f'Improved article length: {improved_len} words')
 
 
 if __name__ == '__main__':

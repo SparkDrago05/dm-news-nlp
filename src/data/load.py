@@ -3,21 +3,12 @@ from copy import deepcopy
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-
 import pandas as pd
 import yaml
 
+from ..utils import get_project_root, _resolve_path
+
 logger = logging.getLogger(__name__)
-
-
-def get_project_root() -> Path:
-    """Infer project root as two levels above this file: src/data/load.py -> project/"""
-    return Path(__file__).resolve().parents[2]
-
-
-def _resolve_path(p: str | Path, root: Path) -> Path:
-    p = Path(p)
-    return p if p.is_absolute() else (root / p)
 
 
 def _deep_update(base: dict, overrides: dict) -> dict:
@@ -38,7 +29,7 @@ def load_yaml(path: str | Path) -> Dict[str, Any]:
     extends = cfg.pop('extends', None)
     if extends:
         base_path = path.parent / extends
-        base_cfg = load_yaml(base_path)   # recursion if base also extends something
+        base_cfg = load_yaml(base_path)  # recursion if base also extends something
         cfg = _deep_update(base_cfg, cfg)
 
     return cfg
@@ -150,6 +141,7 @@ def load_all_sources(config: Dict[str, Any], root: str | Path | None = None) -> 
         combined = (
             combined.groupby('__file__', group_keys=False)
             .apply(lambda g: g.sample(min(len(g), per_source), random_state=config['project']['random_seed']))
+            .reset_index(drop=True)
         )
 
     return combined

@@ -15,6 +15,7 @@ from sklearn.svm import LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 
 from ..features.vectorizers import build_vectorizer
+from ..utils import get_project_root, _resolve_path
 
 
 def _build_base_classifier(cfg: Dict) -> Any:
@@ -109,25 +110,29 @@ def train_text_classifier(
     return pipeline, X_train, X_test, y_train, y_test, report_dict
 
 
-def save_classifier(model: Pipeline, cfg: Dict) -> None:
+def save_classifier(model: Pipeline, cfg: Dict, root: str | Path | None = None) -> None:
     """Save trained classifier to disk."""
+    root_path = Path(root) if root is not None else get_project_root()
+
     art_cfg = cfg['artifacts']
     model_dir = art_cfg.get('model_dir', 'models')
     filename = art_cfg.get('classifier_filename', 'news_classifier.joblib')
 
-    model_path = Path(model_dir)
+    model_path = _resolve_path(model_dir, root_path)
     model_path.mkdir(parents=True, exist_ok=True)
 
     full_path = model_path / filename
     joblib.dump(model, full_path)
 
 
-def load_classifier(cfg: Dict) -> Pipeline:
+def load_classifier(cfg: Dict, root: str | Path | None = None) -> Pipeline:
     """Load a trained classifier from disk."""
+    root_path = Path(root) if root is not None else get_project_root()
+
     art_cfg = cfg['artifacts']
     model_dir = art_cfg.get('model_dir', 'models')
     filename = art_cfg.get('classifier_filename', 'news_classifier.joblib')
 
-    full_path = Path(model_dir) / filename
+    full_path = _resolve_path(model_dir, root_path) / filename
     model: Pipeline = joblib.load(full_path)
     return model
